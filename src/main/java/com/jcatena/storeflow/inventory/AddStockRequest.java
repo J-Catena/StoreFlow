@@ -15,3 +15,4 @@ public class AddStockRequest {
     @Min(1)
     private int quantity;
 }
+
