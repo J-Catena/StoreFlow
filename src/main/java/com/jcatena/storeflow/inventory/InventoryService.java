@@ -59,11 +59,18 @@ public class InventoryService {
     }
 
     /**
-     * Devuelve el stock actual en TIENDA para el serialNumber dado.
-     * Si no existe producto o inventario, devuelve 0.
+     * Stock en TIENDA (por compatibilidad con lo que ya usas).
      */
     @Transactional
     public int getStockForProduct(String serialNumber) {
+        return getStockForProductAt(serialNumber, LocationType.STORE);
+    }
+
+    /**
+     * Stock por ubicación (STORE, WORKSHOP...).
+     */
+    @Transactional
+    public int getStockForProductAt(String serialNumber, LocationType location) {
         if (serialNumber == null || serialNumber.isBlank()) {
             return 0;
         }
@@ -72,9 +79,59 @@ public class InventoryService {
 
         return productRepository.findBySerialNumber(cleanedSerial)
                 .flatMap(product ->
-                        inventoryItemRepository.findByProductAndLocation(product, LocationType.STORE)
+                        inventoryItemRepository.findByProductAndLocation(product, location)
                 )
                 .map(InventoryItem::getQuantity)
                 .orElse(0);
+    }
+
+    /**
+     * Transfiere stock de TIENDA a TALLER.
+     */
+    @Transactional
+    public void transferToWorkshop(String serialNumber, int quantity) {
+        if (serialNumber == null || serialNumber.isBlank()) {
+            throw new IllegalArgumentException("Serial number must not be empty");
+        }
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than 0");
+        }
+
+        String cleanedSerial = serialNumber.trim();
+
+        Product product = productRepository.findBySerialNumber(cleanedSerial)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + cleanedSerial));
+
+        // Stock en tienda
+        InventoryItem storeItem = inventoryItemRepository
+                .findByProductAndLocation(product, LocationType.STORE)
+                .orElseThrow(() -> new IllegalStateException(
+                        "No store stock entry for product: " + cleanedSerial
+                ));
+
+        if (storeItem.getQuantity() < quantity) {
+            throw new IllegalStateException(
+                    "Not enough store stock for product " + cleanedSerial +
+                            ". Requested transfer " + quantity +
+                            ", available " + storeItem.getQuantity()
+            );
+        }
+
+        // Stock en taller (crear si no existe)
+        InventoryItem workshopItem = inventoryItemRepository
+                .findByProductAndLocation(product, LocationType.WORKSHOP)
+                .orElseGet(() -> InventoryItem.builder()
+                        .product(product)
+                        .location(LocationType.WORKSHOP)
+                        .quantity(0)
+                        .build()
+                );
+
+        // Movimiento
+        storeItem.setQuantity(storeItem.getQuantity() - quantity);
+        workshopItem.setQuantity(workshopItem.getQuantity() + quantity);
+
+        inventoryItemRepository.save(storeItem);
+        inventoryItemRepository.save(workshopItem);
     }
 }

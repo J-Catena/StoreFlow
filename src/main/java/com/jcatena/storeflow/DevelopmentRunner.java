@@ -1,7 +1,9 @@
 package com.jcatena.storeflow;
 
 import com.jcatena.storeflow.inventory.InventoryService;
+import com.jcatena.storeflow.inventory.LocationType;
 import com.jcatena.storeflow.sale.SaleService;
+import com.jcatena.storeflow.workshop.WorkshopService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
@@ -14,6 +16,7 @@ public class DevelopmentRunner implements CommandLineRunner {
 
     private final InventoryService inventoryService;
     private final SaleService saleService;
+    private final WorkshopService workshopService;
 
     @Override
     public void run(String... args) {
@@ -38,5 +41,32 @@ public class DevelopmentRunner implements CommandLineRunner {
 
         System.out.println("Stock después de la venta = " + remaining);
         System.out.println("-------------------------");
+
+        System.out.println("---- TEST WORKSHOP ----");
+
+// 1. Creamos stock en TIENDA
+        inventoryService.addStock("PZ123", "Polea de motor", 20);
+
+// 2. Transferimos 10 unidades de TIENDA -> TALLER
+        inventoryService.transferToWorkshop("PZ123", 10);
+
+// 3. Creamos orden de reparación
+        var order = workshopService.createOrder("Cliente Taller", "Cortacésped Honda");
+
+// 4. Añadimos pieza usada (5 uds)
+        workshopService.addPart(order.getId(), "PZ123", 5);
+
+// 5. Cerramos la reparación (ahora SÍ debe funcionar)
+        var closed = workshopService.closeOrder(order.getId());
+
+// 6. Comprobamos stock en taller y en tienda
+        int storeStock = inventoryService.getStockForProductAt("PZ123", LocationType.STORE);
+        int workshopStock = inventoryService.getStockForProductAt("PZ123", LocationType.WORKSHOP);
+
+        System.out.println("Order status = " + closed.getStatus());
+        System.out.println("Store stock after repair = " + storeStock);
+        System.out.println("Workshop stock after repair = " + workshopStock);
+        System.out.println("-------------------------");
     }
 }
+
