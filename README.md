@@ -1,67 +1,113 @@
-StoreFlow – Inventory & Sales Management System
+StoreFlow
+Inventory, Sales & Workshop Management Backend (Java / Spring Boot)
 
-StoreFlow is a backend system designed to model the real workflows of a small retail store:
-product intake, inventory management, sales processing, and business-rule validation.
-It is built with Spring Boot, follows domain-driven principles, and includes full service-level test coverage for all core features.
+StoreFlow is a backend system designed to model real-world store and workshop workflows, not just CRUD operations.
 
- Features
-Inventory Management
+It simulates how a small retail business actually operates:
+products enter the store, stock is managed across locations, sales are processed through tickets, and a workshop consumes parts only after internal stock transfers.
 
-Register products by serial number.
+The project focuses on business rules, state consistency, and transactional integrity, with full service-level test coverage.
 
-Automatically create products on first stock entry.
+ Core Concepts Modeled
 
-Maintain stock at STORE location.
+StoreFlow is built around real business constraints:
 
-Retrieve current stock instantly.
+Stock does not decrease until a sale or repair is closed
 
-Prevent inconsistent states through validation.
+A workshop cannot consume parts directly from store stock
 
-Sales (Ticket System)
+Internal stock transfers are required (STORE → WORKSHOP)
 
-Create sales tickets (OPEN → CLOSED).
+Closed operations cannot be modified
 
-Add product lines to a ticket.
+All critical actions are validated and fail fast with meaningful errors
 
-Auto-merge lines for repeated products.
+This is a domain-driven backend, not a demo API.
 
-Validate stock before closing a sale.
+ Functional Modules
+ Inventory Management
 
-Deduct inventory only on ticket close.
+Register products by serial number
+
+Auto-create products on first stock entry
+
+Maintain stock by location:
+
+STORE
+
+WORKSHOP
+
+Transfer stock internally between locations
+
+Prevent negative or inconsistent stock states
+
+ Sales (Ticket System)
+
+Create sales tickets (OPEN → CLOSED)
+
+Add product lines (auto-merge repeated products)
+
+Validate stock before closing
+
+Deduct inventory only on ticket close
 
 Prevent:
 
-Closing when stock is insufficient.
+Closing with insufficient stock
 
-Modifying closed tickets.
+Modifying closed tickets
 
-Closing the same ticket twice.
+Closing the same ticket twice
 
-Business Error Handling
+ Workshop (Repair Orders)
 
-Structured JSON error responses.
+Create repair orders (OPEN → CLOSED)
 
-409 Conflict for business rule violations.
+Register parts used during a repair
 
-400 Bad Request for invalid input.
+Consume stock only from WORKSHOP
 
-Test Coverage
+Enforce internal transfer rules
 
-Includes complete tests for:
+Prevent closing repairs without sufficient workshop stock
+
+ Business Error Handling
+
+The API returns clear, business-driven errors, not generic failures:
+
+400 Bad Request → invalid input
+
+409 Conflict → business rule violation
+
+Example:
+
+{
+"error": "Conflict",
+"status": 409,
+"message": "Not enough workshop stock for product PZ123",
+"path": "/api/workshop/orders/1/close",
+"timestamp": "2025-12-05T..."
+}
+
+ Test Coverage
+
+All core logic is protected by service-level tests:
 
 InventoryService
 
 SaleService
 
-Stock operations
+WorkshopService
+
+Stock transfers
 
 Business rule validation
 
 Transactional consistency
 
-All tests run under an in-memory H2 database for isolation and speed.
+Tests run using an in-memory H2 database, ensuring isolation and speed.
 
- Tech Stack
+🛠 Tech Stack
 
 Java 21
 
@@ -69,7 +115,7 @@ Spring Boot
 
 Spring Data JPA / Hibernate
 
-H2 (Test)
+H2 (tests)
 
 JUnit 5 + AssertJ
 
@@ -79,123 +125,76 @@ RESTful API
 
 Global Exception Handling
 
- Folder Structure (Simplified)
+Transactional Services
+
+ Project Structure (Simplified)
 src/
- └── main/java/com/jcatena/storeflow
-     ├── inventory/     # stock entries, product creation, inventory queries
-     ├── product/       # product entity + repository
-     ├── sale/          # sale tickets, lines, closing logic
-     ├── common/        # global exception handler + ApiError
-     └── StoreFlowApplication.java
+├── main/java/com/jcatena/storeflow
+│   ├── inventory/    # stock, locations, transfers
+│   ├── product/      # product model
+│   ├── sale/         # sales tickets & lines
+│   ├── workshop/     # repair orders & consumption
+│   ├── common/       # error handling
+│   └── StoreFlowApplication.java
+└── test/java/com/jcatena/storeflow
+├── inventory/
+├── sale/
+└── workshop/
 
- └── test/java/com/jcatena/storeflow
-     ├── inventory/InventoryServiceTest.java
-     └── sale/SaleServiceTest.java
-
- API Endpoints
-Inventory
-Add stock
-POST /api/inventory/add
-
-
-Request:
-
-{
-  "serialNumber": "ABC123",
-  "name": "Cuchilla 40cm",
-  "quantity": 10
-}
-
-Get stock by serial number
-GET /api/inventory/{serialNumber}
-
-
-Response:
-
-10
-
-Sales
-Create ticket
-POST /api/sales/tickets
-
-
-Request:
-
-{
-  "customerName": "Cliente Test"
-}
-
-Add line
-POST /api/sales/tickets/{ticketId}/lines
-
-
-Request:
-
-{
-  "serialNumber": "ABC123",
-  "quantity": 3
-}
-
-Close ticket
-POST /api/sales/tickets/{ticketId}/close
-
-
-Successful close updates inventory and returns ticket response.
-Failure produces:
-
-{
-  "error": "Conflict",
-  "status": 409,
-  "message": "Not enough stock for product ABC123. Requested 12, available 5",
-  "path": "/api/sales/tickets/1/close",
-  "timestamp": "2025-12-05T..."
-}
-
- Running Tests
-mvn test
-
-
-Everything is transactional and isolated.
-All critical domain rules are validated through unit and integration tests.
-
- Running the Application
-With Maven:
+▶ Running the Application
 mvn spring-boot:run
 
 
-The app runs on:
+App runs on:
 
 http://localhost:8080
 
-Profiles
+▶ Running Tests
+mvn test
 
-The project includes a dev profile with a DevelopmentRunner for internal testing, disabled by default.
 
- Project Status
+All operations are transactional and fully isolated.
 
-The core domain (inventory + sales) is fully implemented and tested.
-Next planned modules:
+ Profiles
 
-Workshop module (repair orders + stock consumption)
+A dev profile includes a DevelopmentRunner used for internal domain testing.
+Disabled by default.
 
-Security using JWT
+ Project Status & Roadmap
+ Implemented
 
-PostgreSQL integration + Docker Compose
+Inventory (multi-location)
 
-API documentation (OpenAPI/Swagger)
+Sales
+
+Workshop
+
+Internal stock transfers
+
+Full service-level test coverage
+
+ Planned
+
+REST controllers for workshop module
+
+JWT-based security
+
+PostgreSQL + Docker Compose
+
+OpenAPI / Swagger documentation
 
  Why This Project Matters
 
-This is not a CRUD.
-It models real business rules found in stores and repair shops:
+This project demonstrates backend thinking beyond CRUD:
 
-Stock doesn’t decrease until a ticket is closed.
+Business rules enforced at service level
 
-Tickets can't be modified after closing.
+State transitions explicitly modeled
 
-Operations fail with clear business-driven errors.
+Stock integrity guaranteed by transactions
 
-Multiple modules share consistent domain behavior.
+Failures are meaningful and intentional
 
-This demonstrates professional backend thinking:
-validation, transactional logic, and state correctness.
+Modules interact consistently
+
+It reflects the kind of backend logic found in real retail and repair environments, not tutorials.
