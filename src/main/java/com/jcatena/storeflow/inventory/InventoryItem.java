@@ -4,6 +4,8 @@ import com.jcatena.storeflow.product.Product;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(
         name = "inventory_items",
@@ -38,6 +40,8 @@ public class InventoryItem {
     @Column(nullable = false, length = 50)
     private LocationType location;
 
-    @Column(nullable = false)
-    private int quantity;
+    // Cantidad fraccionable (litros, metros, kg, etc.)
+    // Escala fija: 3 decimales suele ser suficiente para la mayoría de casos reales.
+    @Column(nullable = false, precision = 19, scale = 3)
+    private BigDecimal quantity = BigDecimal.ZERO;
 }
